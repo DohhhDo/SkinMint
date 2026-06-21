@@ -1,0 +1,17 @@
+node_modules
+dist
+.next
+.turbo
+out
+coverage
+*.tsbuildinfo
+*.log
+npm-debug.log*
+.DS_Store
+.env
+.env.*
+!.env.example
+.skinmint-data
+
+# internal dev notes / handoff logs — never published
+.notes/

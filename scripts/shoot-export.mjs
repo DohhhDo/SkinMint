@@ -1,0 +1,16 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
+const p = await b.newPage({ viewport: { width: 1100, height: 800 }, deviceScaleFactor: 1.5 });
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(500);
+await p.locator(".wz-char").first().click(); await sleep(400);
+await p.locator(".wz-next").click(); await sleep(400);
+await p.locator(".wz-next").click(); await sleep(400);
+await p.getByText("奔跑", { exact: true }).click(); await sleep(300);
+await p.locator(".wz-next.gen").click();
+await p.waitForFunction(() => document.querySelector(".wz-result-tag"), { timeout: 20000 }).catch(()=>{});
+await sleep(1200);
+await p.getByText("导出", { exact: false }).first().click(); await sleep(600);
+await p.screenshot({ path: "/tmp/skinmint-shots/w2-7-export.png" });
+await b.close(); console.log("ok");

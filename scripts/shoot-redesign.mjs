@@ -1,0 +1,24 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const OUT="/tmp/skinmint-shots";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const p = await b.newPage({ viewport: { width: 1340, height: 880 }, deviceScaleFactor: 1.5 });
+const errs=[]; p.on("pageerror",e=>errs.push(String(e))); p.on("console",m=>{if(m.type()==="error")errs.push("c:"+m.text());});
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(1200); // fonts
+await p.screenshot({ path: `${OUT}/rd-0-empty.png` });
+await p.locator(".face").first().click(); await sleep(700);
+await p.screenshot({ path: `${OUT}/rd-1-who.png` });
+await p.locator(".cta.next").click(); await sleep(600);
+await p.screenshot({ path: `${OUT}/rd-2-look.png` });
+await p.getByText("Q 版",{exact:true}).click(); await p.getByText("带展台",{exact:true}).click(); await sleep(400);
+await p.locator(".cta.next").click(); await sleep(600);
+await p.screenshot({ path: `${OUT}/rd-3-act.png` });
+await p.getByText("行走",{exact:true}).click(); await sleep(300);
+await p.locator(".cta").last().click();
+await sleep(400); await p.screenshot({ path: `${OUT}/rd-4-building.png` });
+await p.waitForFunction(()=>document.querySelector(".result-flag"),{timeout:20000}).catch(()=>{});
+await sleep(1500);
+await p.screenshot({ path: `${OUT}/rd-5-result.png` });
+await b.close();
+console.log("errors:", errs.slice(0,6));

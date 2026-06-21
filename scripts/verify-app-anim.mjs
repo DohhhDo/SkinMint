@@ -1,0 +1,21 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const p = await b.newPage({ viewport: { width: 1100, height: 820 }, deviceScaleFactor: 1 });
+const errs=[]; p.on("pageerror",e=>errs.push(String(e)));
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(500);
+await p.locator(".wz-char").first().click(); await sleep(300);
+await p.locator(".wz-next").click(); await sleep(300);
+await p.locator(".wz-next").click(); await sleep(300);
+await p.getByText("行走",{exact:true}).click(); await sleep(200);
+await p.locator(".wz-next.gen").click();
+await p.waitForFunction(() => document.querySelector(".wz-result-tag"), { timeout: 20000 }).catch(()=>{});
+await sleep(900); // settle camera damping
+const stage = p.locator(".wz-stage");
+const a = await stage.screenshot({ path: "/tmp/skinmint-shots/app-anim-a.png" });
+await sleep(1600);
+const c = await stage.screenshot({ path: "/tmp/skinmint-shots/app-anim-b.png" });
+await b.close();
+console.log("errors:", errs.slice(0,5));
+console.log("stage frames identical (=NOT animating):", Buffer.compare(a,c)===0);

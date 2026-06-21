@@ -1,0 +1,16 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const browser = await chromium.launch({ args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const page = await browser.newPage({ viewport:{width:1180,height:880}, deviceScaleFactor:1 });
+const errs=[]; page.on("pageerror",e=>errs.push(String(e)));
+await page.goto("http://localhost:3000/", { waitUntil:"networkidle" });
+await sleep(1500);
+await page.locator('.char-card', { hasText: '可莉' }).click();
+await page.locator('.stage-opts .opt', { hasText: '比例' }).getByText('Q版').click();
+await page.locator('.stage-opts .opt', { hasText: '底座' }).getByText('有').click();
+await page.locator('.stage-bar .send').click();
+await page.locator('.stage-preview skinmint-model').waitFor({ timeout: 30000 });
+await sleep(8000);
+await page.screenshot({ path:"/tmp/skinmint-shots/opts-result.png" });
+console.log("done; errors:", errs.filter(e=>!e.includes('_next')).slice(0,4));
+await browser.close();

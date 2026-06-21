@@ -1,0 +1,14 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
+const p = await b.newPage({ viewport: { width: 1240, height: 800 }, deviceScaleFactor: 1.4 });
+const errs=[]; p.on("pageerror",e=>errs.push(String(e)));
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(1000);
+await p.getByText("文字创造", { exact: false }).click();
+await sleep(400);
+await p.locator(".prompt-in").fill("红发女剑士，黑色铠甲，红色眼睛");
+await sleep(300);
+await p.screenshot({ path: "/tmp/skinmint-shots/p1-ui-textmode.png" });
+await b.close();
+console.log("errors:", errs.slice(0,4));

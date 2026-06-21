@@ -1,0 +1,24 @@
+{
+  "name": "skinmint",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Text-to-3D for the web: generate fun GLB meshes and show them off with a reusable React viewer.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

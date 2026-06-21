@@ -1,0 +1,16 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const p = await b.newPage({ viewport: { width: 1240, height: 800 }, deviceScaleFactor: 1 });
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(900);
+await p.locator(".face").first().click(); await sleep(300);
+await p.locator(".cta.next").click(); await sleep(250);
+await p.getByText("Q 版",{exact:true}).click(); await p.getByText("带展台",{exact:true}).click(); await sleep(250);
+await p.locator(".cta.next").click(); await sleep(250);
+await p.getByText("挥手",{exact:true}).click(); await sleep(200);
+await p.locator(".panel-foot .cta").click();
+await p.waitForFunction(()=>document.querySelector(".result-flag"),{timeout:20000}).catch(()=>{});
+await sleep(1600);
+await p.screenshot({ path: "/tmp/skinmint-shots/rd-result2.png" });
+await b.close(); console.log("ok");

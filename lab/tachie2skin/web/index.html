@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tachie2skin · 立绘 → MC 皮肤</title>
+<style>
+  :root {
+    --cream: #f5ece0;
+    --paper: #fffaf2;
+    --ink: #3a2f28;
+    --muted: #8a7866;
+    --terra: #c8623a;
+    --terra-d: #a84e2c;
+    --line: #e2d3bf;
+    --shadow: 0 10px 34px rgba(120, 80, 50, .16);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--cream); color: var(--ink);
+    font-family: ui-serif, Georgia, "Songti SC", serif; line-height: 1.5;
+  }
+  header { padding: 28px 24px 8px; text-align: center; }
+  header h1 { margin: 0; font-size: 24px; letter-spacing: .02em; }
+  header p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  .config { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .config b { color: var(--terra-d); font-weight: 600; }
+  main {
+    max-width: 1040px; margin: 18px auto 60px; padding: 0 20px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start;
+  }
+  @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: var(--shadow); padding: 20px;
+  }
+  .card h2 { margin: 0 0 14px; font-size: 16px; font-weight: 600; }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 14px; padding: 22px;
+    text-align: center; color: var(--muted); cursor: pointer; transition: .15s;
+    background: #fdf6ec;
+  }
+  .drop.drag { border-color: var(--terra); background: #fbeee2; color: var(--terra-d); }
+  .drop img { max-height: 320px; max-width: 100%; border-radius: 10px; }
+  .field { margin-top: 16px; }
+  .field label { display: block; font-size: 13px; margin-bottom: 6px; }
+  .field .val { color: var(--terra-d); font-variant-numeric: tabular-nums; }
+  input[type=text], textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; font: inherit; font-size: 14px; color: var(--ink);
+  }
+  textarea { resize: vertical; min-height: 52px; }
+  input[type=range] { width: 100%; accent-color: var(--terra); }
+  .row { display: flex; gap: 14px; }
+  .row > .field { flex: 1; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+  button.go {
+    margin-top: 18px; width: 100%; padding: 12px; border: 0; border-radius: 12px;
+    background: var(--terra); color: #fff; font: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; box-shadow: 0 6px 16px rgba(200, 98, 58, .3); transition: .15s;
+  }
+  button.go:hover { background: var(--terra-d); }
+  button.go:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+  .tabs { display: flex; gap: 8px; margin: 16px 0 4px; }
+  .tab {
+    flex: 1; padding: 9px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fdf6ec; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .tab.active { background: var(--terra); color: #fff; border-color: var(--terra); font-weight: 600; }
+  .pedestal {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    min-height: 440px; justify-content: center;
+  }
+  canvas#view {
+    background: radial-gradient(120% 90% at 50% 18%, #fff7ec 0%, #f1e2cf 100%);
+    border-radius: 16px;
+  }
+  .atlas-wrap { display: flex; gap: 16px; align-items: center; margin-top: 6px; }
+  img.atlas {
+    image-rendering: pixelated; width: 128px; height: 128px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  }
+  .meta { font-size: 12px; color: var(--muted); }
+  .meta .cap { color: var(--ink); }
+  .actions { display: flex; gap: 10px; margin-top: 8px; }
+  .actions a, .actions button {
+    font: inherit; font-size: 13px; text-decoration: none; cursor: pointer;
+    padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: #fff; color: var(--ink);
+  }
+  .placeholder { color: var(--muted); text-align: center; font-size: 14px; }
+  .spinner {
+    width: 26px; height: 26px; border: 3px solid var(--line); border-top-color: var(--terra);
+    border-radius: 50%; animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { color: #a3331f; font-size: 13px; margin-top: 10px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>立绘 → Minecraft 皮肤</h1>
+  <p>上传一张二次元立绘，img2img 生成可进游戏的 64×64 皮肤</p>
+  <div class="config" id="config">检查后端…</div>
+</header>
+
+<main>
+  <!-- 输入 -->
+  <section class="card">
+    <h2>① 输入立绘</h2>
+    <div class="drop" id="drop">
+      <div id="dropHint">拖入或点击选择图片<div class="hint">PNG / JPG / WEBP · 建议正面全身白底</div></div>
+      <input type="file" id="file" accept="image/*" hidden />
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="recolor" id="tabRecolor">重上色（人形·推荐）</button>
+      <button class="tab" data-tab="proj" id="tabProj">区域投影</button>
+      <button class="tab" data-tab="ai" id="tabAi">AI 生成</button>
+    </div>
+
+    <!-- 重上色：从真人形基底皮肤出发，按立绘配色重上色（VLM 取发/眼/服色） -->
+    <div id="recolorControls">
+      <div class="field">
+        <div class="hint">从有细节的基底皮肤出发，VLM 自动选最配的原型 + 读出配色重上色——保留细节、保证是个人。</div>
+        <label style="margin-top:10px">基底原型</label>
+        <select id="baseSel" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-size:14px">
+          <option value="">自动（VLM 选）</option>
+          <option value="schoolgirl">校服 schoolgirl</option>
+          <option value="dress">连衣裙 dress</option>
+          <option value="hoodie">卫衣 hoodie</option>
+          <option value="kimono">和服 kimono</option>
+          <option value="sporty">运动 sporty</option>
+          <option value="coat">大衣 coat</option>
+        </select>
+        <div id="swatches" class="atlas-wrap" style="flex-wrap:wrap;margin-top:10px"></div>
+      </div>
+    </div>
+
+    <!-- 区域投影：纯本地，把立绘真实像素投影到对应 atlas 面 -->
+    <div id="projControls">
+      <div class="field">
+        <label class="toggle"><input type="checkbox" id="aiSeg" checked /> AI 抠图（云端 isnet-anime，深发深底也准）</label>
+        <div class="hint" id="segHint">未部署则自动回退到本地颜色抠图</div>
+        <label class="toggle" style="margin-top:8px"><input type="checkbox" id="removeBg" checked /> 本地去背景（白底/纯色，回退用）</label>
+        <label style="margin-top:8px">本地背景容差 <span class="val" id="bgTolVal">110</span></label>
+        <input type="range" id="bgTol" min="40" max="200" step="5" value="110" />
+      </div>
+      <div class="field">
+        <label>脖子线（头/身分界） <span class="val" id="neckVal">0.16</span></label>
+        <input type="range" id="neck" min="0.08" max="0.30" step="0.01" value="0.16" />
+        <label style="margin-top:10px">胯线（身/腿分界） <span class="val" id="hipVal">0.50</span></label>
+        <input type="range" id="hip" min="0.40" max="0.66" step="0.01" value="0.50" />
+        <label style="margin-top:10px">躯干中心占比（其余=手臂） <span class="val" id="torsoCenterVal">0.50</span></label>
+        <input type="range" id="torsoCenter" min="0.30" max="0.80" step="0.05" value="0.50" />
+        <label style="margin-top:10px">脸宽占比（其余=两侧头发） <span class="val" id="faceWidthVal">0.50</span></label>
+        <input type="range" id="faceWidth" min="0.25" max="0.85" step="0.05" value="0.50" />
+        <label style="margin-top:10px">刘海/脸分界 <span class="val" id="hairFaceVal">0.42</span></label>
+        <input type="range" id="hairFace" min="0.25" max="0.65" step="0.02" value="0.42" />
+        <div class="hint">长发角色把"脸宽"调小，脸才不会被头发吞掉。正面=立绘真实像素，侧背自动推断。</div>
+      </div>
+    </div>
+
+    <!-- AI 生成：云端 IP-Adapter / 文生图 -->
+    <div id="aiControls" hidden>
+    <div class="field" id="idBox">
+      <label>身份还原强度 <span class="val" id="ipScaleVal">0.60</span>
+        <span class="hint">· IP-Adapter · 高=更像立绘，低=更像标准皮肤</span></label>
+      <input type="range" id="ipScale" min="0.2" max="0.9" step="0.05" value="0.6" />
+      <div class="hint">立绘作为图像参考从噪声生成合法图集，保住角色身份</div>
+    </div>
+
+    <div class="field">
+      <label class="toggle"><input type="checkbox" id="useCaption" checked /> 同时用 AI 看图描述（Qwen3-VL，文字+图像一起）</label>
+    </div>
+    <div class="field">
+      <label>手动描述 / 覆盖 prompt（留空则用自动描述）</label>
+      <textarea id="prompt" placeholder="如：blue twin-tail girl, white sailor uniform, red bow"></textarea>
+    </div>
+
+    <details class="field">
+      <summary style="cursor:pointer;font-size:13px;color:var(--muted)">其它生成模式（对比用）</summary>
+      <label class="toggle" style="margin-top:10px"><input type="radio" name="mode" value="auto" checked /> 自动（有 IP-Adapter 就用身份还原）</label>
+      <label class="toggle" style="margin-top:8px"><input type="radio" name="mode" value="text2img" /> 纯文生图（只靠文字描述，不看图像）</label>
+      <label class="toggle" style="margin-top:8px"><input type="radio" name="mode" value="img2img" /> img2img 描摹（实验，通常退化成缩小的立绘）</label>
+      <label style="margin-top:10px">img2img strength <span class="val" id="strengthVal">0.70</span></label>
+      <input type="range" id="strength" min="0.2" max="0.95" step="0.05" value="0.7" />
+    </details>
+
+    <div class="row">
+      <div class="field">
+        <label>seed</label>
+        <input type="text" id="seed" value="0" inputmode="numeric" />
+      </div>
+      <div class="field">
+        <label>steps</label>
+        <input type="text" id="steps" value="25" inputmode="numeric" />
+      </div>
+    </div>
+    </div><!-- /aiControls -->
+
+    <button class="go" id="go" disabled>生成皮肤</button>
+    <div class="err" id="err"></div>
+  </section>
+
+  <!-- 输出 -->
+  <section class="card">
+    <h2>② 结果</h2>
+    <div class="pedestal" id="pedestal">
+      <div class="placeholder" id="placeholder">生成后在这里实时预览模型</div>
+      <canvas id="view" width="300" height="400" hidden></canvas>
+      <div class="atlas-wrap" id="atlasWrap" hidden>
+        <img class="atlas" id="atlas" alt="skin atlas" />
+        <div class="meta">
+          <div>64×64 atlas</div>
+          <div class="cap" id="capText"></div>
+        </div>
+      </div>
+      <div class="actions" id="actions" hidden>
+        <a id="download" download="skin.png">下载 skin.png</a>
+        <button id="regen">换个 seed 再来</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { SkinViewer, WalkingAnimation } from "https://esm.sh/skinview3d@3";
+import { projectFromDataUrl } from "./project.mjs";
+
+const $ = (id) => document.getElementById(id);
+const drop = $("drop"), fileInput = $("file"), go = $("go");
+let imageBase64 = null, imageMime = null, imageDataUrl = null, viewer = null, cfg = {};
+let tab = "recolor"; // "recolor" | "proj" (local projection) | "ai" (cloud)
+let projSource = null, projPreCut = false, projSegNote = ""; // cached for live re-projection
+
+// --- tab switching ---
+function setTab(t) {
+  tab = t;
+  $("tabRecolor").classList.toggle("active", t === "recolor");
+  $("tabProj").classList.toggle("active", t === "proj");
+  $("tabAi").classList.toggle("active", t === "ai");
+  $("recolorControls").hidden = t !== "recolor";
+  $("projControls").hidden = t !== "proj";
+  $("aiControls").hidden = t !== "ai";
+  go.textContent = t === "recolor" ? "重上色生成皮肤" : t === "proj" ? "投影生成皮肤" : "AI 生成皮肤";
+}
+$("tabRecolor").addEventListener("click", () => setTab("recolor"));
+$("tabProj").addEventListener("click", () => setTab("proj"));
+$("tabAi").addEventListener("click", () => setTab("ai"));
+
+// --- guide slider labels ---
+for (const [id, lbl] of [["bgTol","bgTolVal"],["neck","neckVal"],["hip","hipVal"],["torsoCenter","torsoCenterVal"],["faceWidth","faceWidthVal"],["hairFace","hairFaceVal"]]) {
+  const fmt = id === "bgTol" ? (v) => v : (v) => Number(v).toFixed(2);
+  $(id).addEventListener("input", (e) => $(lbl).textContent = fmt(e.target.value));
+}
+
+// --- backend config banner ---
+fetch("/api/config").then(r => r.json()).then(c => {
+  cfg = c;
+  const parts = [
+    `身份还原(IP-Adapter): <b>${c.hasIPA ? "就绪" : "未部署"}</b>`,
+    `文生图: <b>${c.hasModal ? "就绪" : "缺失"}</b>`,
+    `看图: <b>${c.hasCaption ? "就绪" : "关闭"}</b>`,
+  ];
+  $("config").innerHTML = parts.join(" · ");
+  if (!c.hasIPA) {
+    $("idBox").style.opacity = .5;
+    $("config").innerHTML += `<br><span style="color:#a3331f">未部署 IP-Adapter：当前回退到纯文生图。部署 <code>modal/skin_ipa.py</code> 并设 MODAL_SKIN_IPA_ENDPOINT 后自动启用身份还原。</span>`;
+  }
+  if (!c.hasCaption) { $("useCaption").checked = false; $("useCaption").disabled = true; }
+}).catch(() => $("config").textContent = "无法连接后端");
+
+$("ipScale").addEventListener("input", (e) => $("ipScaleVal").textContent = Number(e.target.value).toFixed(2));
+
+// "auto" → let the server choose (IP-Adapter when deployed, else text2img).
+function selectedMode() {
+  const v = document.querySelector('input[name=mode]:checked')?.value || "auto";
+  return v === "auto" ? undefined : v;
+}
+
+// --- upload ---
+function loadFile(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    imageMime = file.type;
+    imageDataUrl = dataUrl;
+    imageBase64 = dataUrl.split(",")[1];
+    $("dropHint").style.display = "none";
+    let prev = drop.querySelector("img.preview");
+    if (!prev) { prev = document.createElement("img"); prev.className = "preview"; drop.appendChild(prev); }
+    prev.src = dataUrl;
+    go.disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+drop.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault(); drop.classList.remove("drag");
+  loadFile(e.dataTransfer.files[0]);
+});
+
+// --- strength label ---
+$("strength").addEventListener("input", (e) => $("strengthVal").textContent = Number(e.target.value).toFixed(2));
+
+// --- generate ---
+async function showSkin(skinUrl, metaHtml) {
+  $("placeholder").hidden = true;
+  $("view").hidden = false;
+  $("atlas").src = skinUrl; $("atlasWrap").hidden = false;
+  $("capText").innerHTML = metaHtml;
+  $("download").href = skinUrl; $("actions").hidden = false;
+  if (!viewer) {
+    viewer = new SkinViewer({ canvas: $("view"), width: 300, height: 400 });
+    viewer.animation = new WalkingAnimation();
+    viewer.animation.speed = 0.6;
+    viewer.zoom = 0.85;
+  }
+  await viewer.loadSkin(skinUrl);
+}
+
+async function generate() {
+  if (!imageDataUrl) return;
+  $("err").textContent = "";
+  go.disabled = true; const label = go.textContent; go.textContent = "生成中…";
+  $("placeholder").innerHTML = '<div class="spinner"></div>';
+  $("placeholder").hidden = false;
+  $("view").hidden = true; $("atlasWrap").hidden = true; $("actions").hidden = true;
+
+  try {
+    if (tab === "recolor") {
+      // ---- retrieve+recolor: VLM colors → humanoid base skin (server-side) ----
+      const res = await fetch("/api/recolor", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64, mime: imageMime, base: $("baseSel").value || undefined }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "重上色失败");
+      const skinUrl = "data:image/png;base64," + data.skinBase64;
+      // show the extracted colors as swatches
+      const sw = $("swatches"); sw.innerHTML = "";
+      for (const [k, v] of Object.entries(data.colors || {})) {
+        if (!v) continue;
+        const chip = document.createElement("div");
+        chip.style.cssText = `display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)`;
+        chip.innerHTML = `<span style="width:16px;height:16px;border-radius:4px;border:1px solid #0002;background:${v}"></span>${k}`;
+        sw.appendChild(chip);
+      }
+      await showSkin(skinUrl, `<div>模式：<b>重上色</b> · 基底：<b>${data.archetype || "?"}</b></div>` +
+        `<div style="opacity:.8">细节来自基底皮肤 · 配色=立绘(VLM 自动选原型)</div>`);
+      if (data.vlmError) $("err").textContent = "VLM 取色失败，用了默认色：" + data.vlmError;
+    } else if (tab === "proj") {
+      // ---- region projection. Prefer cloud anime matte, fall back to local. ----
+      let srcUrl = imageDataUrl, segNote = "本地颜色抠图";
+      if ($("aiSeg").checked && cfg.hasSeg) {
+        const r = await fetch("/api/segment", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64 }),
+        });
+        const d = await r.json();
+        if (!d.ok) throw new Error("抠图失败：" + d.error);
+        srcUrl = "data:image/png;base64," + d.cutoutBase64;
+        segNote = "AI 抠图 (isnet-anime)";
+      }
+      const aiCut = srcUrl !== imageDataUrl;
+      projSource = srcUrl; projPreCut = aiCut; projSegNote = segNote; // cache for live re-projection
+      const skinUrl = await projectFromDataUrl(srcUrl, {
+        neck: Number($("neck").value),
+        hip: Number($("hip").value),
+        torsoCenter: Number($("torsoCenter").value),
+        faceWidth: Number($("faceWidth").value),
+        hairFace: Number($("hairFace").value),
+      }, { removeBg: aiCut ? false : $("removeBg").checked, bgTol: Number($("bgTol").value) });
+      await showSkin(skinUrl, `<div>模式：<b>区域投影（忠实·本地）</b> · ${segNote}</div>` +
+        `<div style="opacity:.8">正面=立绘真实像素 · 侧/背自动推断</div>`);
+    } else {
+      // ---- cloud AI generation ----
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64, mime: imageMime,
+          caption: $("useCaption").checked,
+          prompt: $("prompt").value,
+          mode: selectedMode(),
+          ipScale: Number($("ipScale").value),
+          strength: Number($("strength").value),
+          seed: parseInt($("seed").value || "0", 10),
+          steps: parseInt($("steps").value || "25", 10),
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "生成失败");
+      const skinUrl = "data:image/png;base64," + data.skinBase64;
+      await showSkin(skinUrl, `<div>模式：<b>${data.mode || "text2img"}</b></div>` +
+        (data.caption ? `<div>看图：${data.caption}</div>` : "") +
+        `<div style="margin-top:4px;opacity:.8">prompt：${data.prompt || ""}</div>`);
+      if (data.captionError) $("err").textContent = "看图失败，已用通用描述：" + data.captionError;
+    }
+  } catch (err) {
+    $("placeholder").hidden = true;
+    $("err").textContent = "❌ " + err.message;
+  } finally {
+    go.disabled = false; go.textContent = label;
+  }
+}
+// Live re-projection: after the first segmentation, dragging a guide re-projects
+// locally and instantly (no server round-trip).
+function projGuides() {
+  return {
+    neck: Number($("neck").value), hip: Number($("hip").value),
+    torsoCenter: Number($("torsoCenter").value),
+    faceWidth: Number($("faceWidth").value), hairFace: Number($("hairFace").value),
+  };
+}
+let reprojTimer = null;
+async function reproject() {
+  if (tab !== "proj" || !projSource) return;
+  try {
+    const skinUrl = await projectFromDataUrl(projSource, projGuides(),
+      { removeBg: projPreCut ? false : $("removeBg").checked, bgTol: Number($("bgTol").value) });
+    await showSkin(skinUrl, `<div>模式：<b>区域投影（忠实·本地）</b> · ${projSegNote}</div>` +
+      `<div style="opacity:.8">拖导引线实时重投影 · 正面=立绘真实像素</div>`);
+  } catch (e) { $("err").textContent = "❌ " + e.message; }
+}
+for (const id of ["neck","hip","torsoCenter","faceWidth","hairFace","bgTol","removeBg"]) {
+  $(id).addEventListener("input", () => { clearTimeout(reprojTimer); reprojTimer = setTimeout(reproject, 120); });
+}
+
+go.addEventListener("click", generate);
+setTab("recolor"); // default to the recommended retrieve+recolor (always human-shaped)
+$("regen").addEventListener("click", () => {
+  $("seed").value = String((parseInt($("seed").value || "0", 10) + 1) >>> 0);
+  generate();
+});
+</script>
+</body>
+</html>

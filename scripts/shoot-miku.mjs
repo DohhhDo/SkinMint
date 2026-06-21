@@ -1,0 +1,15 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
+const p = await b.newPage({ viewport: { width: 1240, height: 820 }, deviceScaleFactor: 1.4 });
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" }); await sleep(900);
+await p.getByText("Vocaloid", { exact: false }).click(); await sleep(500);
+await p.locator(".face").first().click(); await sleep(500);
+await p.screenshot({ path: "/tmp/skinmint-shots/miku-roster.png" });
+await p.locator(".cta.next").click(); await sleep(300);
+await p.locator(".cta.next").click(); await sleep(300);
+await p.locator(".panel-foot .cta").click();
+await p.waitForFunction(()=>document.querySelector(".result-flag"),{timeout:20000}).catch(()=>{});
+await sleep(1500);
+await p.screenshot({ path: "/tmp/skinmint-shots/miku-model.png" });
+await b.close(); console.log("ok");

@@ -1,0 +1,12 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { extractSkinPalette, paintSkinFromPalette, HFVisionProvider } from "../packages/skin/dist/index.js";
+import { buildMinecraftGLB } from "../packages/mcmodel/dist/index.js";
+const env = Object.fromEntries(readFileSync("examples/next-demo/.env.local","utf8").split("\n").filter(l=>l&&!l.startsWith("#")&&l.includes("=")).map(l=>{const i=l.indexOf("=");return [l.slice(0,i).trim(),l.slice(i+1).trim()]}));
+const img = new Uint8Array(readFileSync("/tmp/skinmint-shots/p1-portrait.png"));
+console.log("image bytes:", img.length);
+const t0 = Date.now();
+const pal = await extractSkinPalette(img, { vision: new HFVisionProvider({ hfToken: env.HF_TOKEN, timeoutMs: 30000 }), mime: "image/png" });
+console.log(`palette in ${((Date.now()-t0)/1000).toFixed(1)}s:`, JSON.stringify(pal));
+const glb = await buildMinecraftGLB(paintSkinFromPalette(pal), { overlay: true });
+writeFileSync("/tmp/p1.glb", Buffer.from(glb));
+console.log("model built");

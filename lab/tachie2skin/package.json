@@ -1,0 +1,14 @@
+{
+  "name": "tachie2skin",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Standalone lab tool: 二次元立绘 → Minecraft 皮肤 (img2img). Borrows SkinMint keys, depends on no SkinMint package.",
+  "engines": { "node": ">=18" },
+  "bin": { "tachie2skin": "./src/cli.mjs" },
+  "scripts": {
+    "serve": "node src/server.mjs",
+    "gen": "node src/cli.mjs",
+    "help": "node src/cli.mjs --help"
+  }
+}

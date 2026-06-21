@@ -1,0 +1,24 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const p = await b.newPage({ viewport: { width: 1200, height: 820 }, deviceScaleFactor: 1 });
+const errs=[]; p.on("pageerror",e=>errs.push(String(e)));
+await p.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(800);
+await p.locator(".face").first().click(); await sleep(300);
+await p.locator(".cta.next").click(); await sleep(300);
+await p.locator(".cta.next").click(); await sleep(300);
+await p.getByText("行走",{exact:true}).click(); await sleep(200);
+await p.locator(".panel-foot .cta").click();
+await p.waitForFunction(()=>document.querySelector(".result-flag"),{timeout:20000}).catch(()=>{});
+await sleep(1000);
+const stage = p.locator(".stage");
+const a = await stage.screenshot();
+await sleep(1500);
+const c = await stage.screenshot();
+// also test live switch to wave
+await p.getByText("挥手",{exact:true}).click(); await sleep(1300);
+await p.screenshot({ path: "/tmp/skinmint-shots/rd-6-wave.png" });
+await b.close();
+console.log("errors:", errs.slice(0,4));
+console.log("walk frames identical (=NOT animating):", Buffer.compare(a,c)===0);

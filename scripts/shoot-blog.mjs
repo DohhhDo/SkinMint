@@ -1,0 +1,10 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const browser = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const page = await browser.newPage({ viewport: { width: 760, height: 760 }, deviceScaleFactor: 1 });
+const errs=[]; page.on("pageerror",e=>errs.push(String(e))); page.on("console",m=>m.type()==="error"&&errs.push(m.text()));
+await page.goto("http://localhost:8099/", { waitUntil: "networkidle" });
+await sleep(8000);
+await page.screenshot({ path: "/tmp/skinmint-shots/fake-blog.png" });
+console.log("errors:", errs.length?errs:"none");
+await browser.close();

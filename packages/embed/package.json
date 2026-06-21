@@ -1,0 +1,36 @@
+{
+  "name": "@skinmint/embed",
+  "version": "0.0.1",
+  "description": "Zero-dependency <skinmint-model> web component — drop a GLB into any page or app.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": true,
+  "main": "./dist/skinmint-embed.js",
+  "module": "./dist/skinmint-embed.js",
+  "types": "./dist/skinmint-embed.d.ts",
+  "unpkg": "./dist/skinmint-embed.global.js",
+  "jsdelivr": "./dist/skinmint-embed.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/skinmint-embed.d.ts",
+      "import": "./dist/skinmint-embed.js"
+    },
+    "./global": "./dist/skinmint-embed.global.js"
+  },
+  "files": ["dist", "README.md"],
+  "keywords": ["3d", "glb", "gltf", "web-component", "custom-element", "three", "embed", "viewer"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.169.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}

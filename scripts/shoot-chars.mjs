@@ -1,0 +1,15 @@
+import { chromium } from "playwright";
+import { setTimeout as sleep } from "node:timers/promises";
+const browser = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"] });
+const page = await browser.newPage({ viewport: { width: 1180, height: 900 }, deviceScaleFactor: 1 });
+const errs=[]; page.on("pageerror",e=>errs.push(String(e)));
+await page.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await sleep(900);
+await page.locator('.rail-btn').nth(1).click();
+await sleep(800);
+const n = await page.locator('.chip').count();
+const chars = await page.locator('.ip-grp .chip').count();
+console.log("total chips:", n, "| character chips:", chars);
+await page.screenshot({ path: "/tmp/skinmint-shots/chars.png" });
+console.log("errors:", errs.slice(0,3));
+await browser.close();
