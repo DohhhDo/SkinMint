@@ -149,3 +149,12 @@ Full attribute list in [docs/embedding](docs/embedding.md).
 ## License
 
 [MIT](LICENSE)
+
+---
+
+<p align="center">
+  <a href="https://www.vindo.cn"><img src="https://www.vindo.cn/Facvion.svg?v=2" width="56" alt="Vindo" /></a>
+</p>
+<p align="center">
+  Made by <b><a href="https://www.vindo.cn">Vindo · 间窗</a></b> · <a href="https://www.vindo.cn">www.vindo.cn</a>
+</p>
