@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <b>🎮 <a href="https://skin.vindo.cn/">線上試用 → skin.vindo.cn</a></b>
+</p>
+
+<p align="center">
   <i>🚧 開發中 · alpha。形態正逐漸穩定，但 API 仍會變動，且尚未發佈到 npm。</i>
 </p>
 

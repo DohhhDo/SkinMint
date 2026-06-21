@@ -84,8 +84,13 @@ export function projectSkin(imageBuf: Buffer, opts: { eyeHex?: string; head?: He
     if (isSkin(r, g, b)) { fr_ += r; fg_ += g; fb_ += b; fn++; }
     else { const mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (mx >= 55 && mx <= 190 && mx - mn > mx * 0.25) { er += r; eg += g; eb += b; en++; } } }
   const faceSkin: RGBA = fn ? [fr_ / fn | 0, fg_ / fn | 0, fb_ / fn | 0, 255] : [240, 210, 190, 255];
-  let eyeC: RGBA = en ? [er / en | 0, eg / en | 0, eb / en | 0, 255] : [100, 60, 50, 255];
-  if (eyeHex && /^#?[0-9a-fA-F]{6}$/.test(eyeHex.trim())) { const n = parseInt(eyeHex.replace("#", ""), 16); eyeC = [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; }
+  // Iris color: trust the VLM's read UNLESS it's the brown DEFAULT (#5a3a2a) — that means the VLM
+  // didn't actually read the eyes, and overriding with it caused the "eyes went brown" regression.
+  // In that case fall back to the color sampled straight from the art's face band.
+  const eyeFromHex = (): RGBA | null => { if (!eyeHex || !/^#?[0-9a-fA-F]{6}$/.test(eyeHex.trim())) return null; const n = parseInt(eyeHex.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; };
+  const vlmEye = eyeFromHex(), vlmDefault = !!eyeHex && eyeHex.replace(/^#/, "").toLowerCase() === "5a3a2a";
+  const artEye: RGBA | null = en >= 2 ? [er / en | 0, eg / en | 0, eb / en | 0, 255] : null;
+  const eyeC: RGBA = vlmEye && !vlmDefault ? vlmEye : artEye ?? vlmEye ?? [100, 60, 50, 255];
 
   // (1) hair VOLUME on the non-face faces (base + overlay): top / sides / back / underside
   for (const [rc, f] of [[hb.py, 1], [hb.nx, 0.95], [hb.px, 0.95], [hb.nz, 0.9], [hb.ny, 0.85]] as const) fillC(rc![0]!, rc![1]!, rc![2]!, rc![3]!, sh(hairC, f as number)!);
@@ -112,14 +117,27 @@ export function projectSkin(imageBuf: Buffer, opts: { eyeHex?: string; head?: He
   for (let y = minY + faceTop; y <= minY + faceBot; y++) for (let x = minX; x <= maxX; x++) { const [r, g, b, a] = at(x, y); if (!bgLike(r, g, b, a)) { if (x < hMinX) hMinX = x; if (x > hMaxX) hMaxX = x; } }
   if (hMaxX < hMinX) { hMinX = minX; hMaxX = maxX; }
   const bandTop = minY + Math.max(0, faceTop - (((faceBot - faceTop) * 0.4) | 0)), bandBot = minY + faceBot;
+  // Anime characters almost always have bangs, so draw a BASELINE fringe from the VLM parting style;
+  // the per-column trace then DEEPENS it where hair is genuinely detectable. (Tracing alone fails:
+  // Qwen's redraw washes light hair toward skin tone, so the hairline vanishes → bare "金正恩" head.)
+  const FR = head?.fringe ?? "blunt";
+  const eyeCol = (c: number) => c === 1 || c === 2 || c === 5 || c === 6;
+  const d2 = (r: number, g: number, b: number, t: RGBA) => { const a = r - t[0], e = g - t[1], f = b - t[2]; return a * a + e * e + f * f; };
   for (let c = 0; c < 8; c++) {
+    // baseline depth: forehead coverage by parting style (center parts shorter, sides longer)
+    let base: number;
+    if (FR === "none") base = c === 0 || c === 7 ? 4 : 1;
+    else if (FR === "middle" || FR === "parted") base = c === 3 || c === 4 ? 1 : c === 0 || c === 7 ? 5 : 3;
+    else if (FR === "swept") base = 2 + Math.round((c / 7) * 3);
+    else base = c === 0 || c === 7 ? 5 : 3; // blunt
+    // trace deepener: scan down; hair continues until a pixel is clearly SKIN (closer to the face
+    // skin than to the hair color) — robust to washed pale hair, unlike a bare isSkin test.
     const ix = (hMinX + (hMaxX - hMinX) * (c + 0.5) / 8) | 0;
     let skinRow = -1;
-    for (let y = bandTop; y <= bandBot; y++) { const [r, g, b, a] = at(ix, y); if (bgLike(r, g, b, a)) continue; if (isSkin(r, g, b)) { skinRow = y; break; } }
-    // cap inner columns so the fringe never reaches the eye row (y12 = j4); outer columns are
-    // face-framing locks and may run the full height.
-    const cap = c === 0 || c === 7 ? 8 : 4;
-    const depth = skinRow < 0 ? cap : Math.max(0, Math.min(cap, Math.round((skinRow - bandTop) / (bandBot - bandTop + 1) * 8)));
+    for (let y = bandTop; y <= bandBot; y++) { const [r, g, b, a] = at(ix, y); if (bgLike(r, g, b, a)) continue; if (d2(r, g, b, faceSkin) < d2(r, g, b, hairC) && isSkin(r, g, b)) { skinRow = y; break; } }
+    const traceDepth = skinRow < 0 ? 8 : Math.round((skinRow - bandTop) / (bandBot - bandTop + 1) * 8);
+    const cap = eyeCol(c) ? 3 : 6;
+    const depth = Math.min(cap, Math.max(base, traceDepth));
     for (let j = 0; j < depth; j++) set(ho.pz![0]! + c, ho.pz![1]! + j, sh(hairC, j === depth - 1 ? 0.85 : 1));
   }
   // sidelocks: keep the outer front-overlay columns hair down the full face height

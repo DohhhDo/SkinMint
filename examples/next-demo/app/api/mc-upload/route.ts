@@ -5,6 +5,7 @@ import { FileSystemBlobStorage, FileGenerationStore } from "@skinmint/store";
 import { extractCharacterSpec } from "@skinmint/skin";
 import { projectSkin } from "../../_lib/project";
 import { sampleColorsNode } from "../../_lib/sampleColorsNode";
+import { clientIp, consume, QUOTA_MESSAGE } from "../../_lib/rateLimit";
 import { resolveImageProvider, resolveVisionProvider } from "../../_ai/providers";
 
 // Upload / text 立绘 → Minecraft model. "Standardize + HYBRID (recolor head + projected body)":
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
 
     const decoded = body.image ? decodeDataUrl(body.image) : null;
     if (!decoded) return Response.json({ error: "缺少立绘图片，无法生成" }, { status: 400 });
+
+    // KEY: per-IP daily quota — this is the model build (counts as 1 AI generation).
+    const q = consume(clientIp(request));
+    if (!q.ok) return Response.json({ error: QUOTA_MESSAGE, quota: q }, { status: 429 });
 
     const id = `up-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
     await store.create({ id, prompt: body.name || "上传立绘", status: "running" });

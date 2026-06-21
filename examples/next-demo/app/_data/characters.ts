@@ -1,95 +1,37 @@
-export interface IP {
-  id: string;
-  name: string;
-  available: boolean;
-}
-
 export interface Character {
   id: string;
   name: string; // Chinese display name
-  ip: string;
+  ip: "genshin" | "anime";
   icon: string; // public path
 }
 
-export const IPS: IP[] = [
-  { id: "genshin", name: "原神", available: true },
-  { id: "anime", name: "热门", available: true },
-  { id: "zzz", name: "绝区零", available: false },
-  { id: "hsr", name: "星穹铁道", available: false },
-];
-
 // Skins live at /skinmint/skins/<id>.png (read server-side), icons at /skinmint/icons/<id>.png.
-const G = (id: string, name: string): Character => ({ id, name, ip: "genshin", icon: `/skinmint/icons/${id}.png` });
+// Every character here ships a curated, hand-made skin — so it is a DIRECT-DOWNLOAD preset (you get a
+// ready model), as opposed to the AI-GENERATED path (prompt / upload → a new skin).
+const C = (ip: "genshin" | "anime") => (id: string, name: string): Character => ({ id, name, ip, icon: `/skinmint/icons/${id}.png` });
+const G = C("genshin");
+const A = C("anime");
 
-export const CHARACTERS: Character[] = [
-  G("hutao", "胡桃"),
-  G("ganyu", "甘雨"),
-  G("zhongli", "钟离"),
-  G("klee", "可莉"),
-  G("keqing", "刻晴"),
-  G("kazuha", "枫原万叶"),
-  G("xiao", "魈"),
-  G("venti", "温迪"),
-  G("diluc", "迪卢克"),
-  G("tartaglia", "达达利亚"),
-  G("xingqiu", "行秋"),
-  G("xiangling", "香菱"),
-  G("qiqi", "七七"),
-  G("albedo", "阿贝多"),
-  G("amber", "安柏"),
-  G("beidou", "北斗"),
-  G("bennett", "班尼特"),
-  G("chongyun", "重云"),
-  G("jean", "琴"),
-  G("noelle", "诺艾尔"),
-  G("razor", "雷泽"),
-  G("sucrose", "砂糖"),
-  G("aether", "空"),
-  G("lumine", "荧"),
-  G("paimon", "派蒙"),
-  G("furina", "芙宁娜"),
-  // assisted-curation additions (mcskins.top → human-made skins)
-  { id: "miku", name: "初音未来", ip: "anime", icon: "/skinmint/icons/miku.png" },
-  { id: "nezuko", name: "祢豆子", ip: "anime", icon: "/skinmint/icons/nezuko.png" },
-  { id: "gojo", name: "五条悟", ip: "anime", icon: "/skinmint/icons/gojo.png" },
-  { id: "frieren", name: "芙莉莲", ip: "anime", icon: "/skinmint/icons/frieren.png" },
-  { id: "rem", name: "蕾姆", ip: "anime", icon: "/skinmint/icons/rem.png" },
-  { id: "makima", name: "玛奇玛", ip: "anime", icon: "/skinmint/icons/makima.png" },
-  { id: "naruto", name: "鸣人", ip: "anime", icon: "/skinmint/icons/naruto.png" },
-  { id: "sasuke", name: "佐助", ip: "anime", icon: "/skinmint/icons/sasuke.png" },
-  { id: "goku", name: "孙悟空", ip: "anime", icon: "/skinmint/icons/goku.png" },
-  { id: "luffy", name: "路飞", ip: "anime", icon: "/skinmint/icons/luffy.png" },
-  { id: "zoro", name: "索隆", ip: "anime", icon: "/skinmint/icons/zoro.png" },
-  { id: "tanjiro", name: "炭治郎", ip: "anime", icon: "/skinmint/icons/tanjiro.png" },
-  { id: "zenitsu", name: "善逸", ip: "anime", icon: "/skinmint/icons/zenitsu.png" },
-  { id: "levi", name: "利威尔", ip: "anime", icon: "/skinmint/icons/levi.png" },
-  { id: "mikasa", name: "三笠", ip: "anime", icon: "/skinmint/icons/mikasa.png" },
-  { id: "anya", name: "阿尼亚", ip: "anime", icon: "/skinmint/icons/anya.png" },
-  { id: "megumin", name: "惠惠", ip: "anime", icon: "/skinmint/icons/megumin.png" },
-  { id: "2b", name: "2B", ip: "anime", icon: "/skinmint/icons/2b.png" },
-  { id: "itachi", name: "宇智波鼬", ip: "anime", icon: "/skinmint/icons/itachi.png" },
-  { id: "kakashi", name: "卡卡西", ip: "anime", icon: "/skinmint/icons/kakashi.png" },
-  { id: "ichigo", name: "一护", ip: "anime", icon: "/skinmint/icons/ichigo.png" },
-  { id: "todoroki", name: "轰焦冻", ip: "anime", icon: "/skinmint/icons/todoroki.png" },
-  { id: "bakugo", name: "爆豪", ip: "anime", icon: "/skinmint/icons/bakugo.png" },
-  { id: "eren", name: "艾伦", ip: "anime", icon: "/skinmint/icons/eren.png" },
-  { id: "link", name: "林克", ip: "anime", icon: "/skinmint/icons/link.png" },
-  { id: "mario", name: "马里奥", ip: "anime", icon: "/skinmint/icons/mario.png" },
-  { id: "hinata", name: "日向雏田", ip: "anime", icon: "/skinmint/icons/hinata.png" },
-  { id: "asuka", name: "明日香", ip: "anime", icon: "/skinmint/icons/asuka.png" },
-  { id: "sonic", name: "索尼克", ip: "anime", icon: "/skinmint/icons/sonic.png" },
-  { id: "kirby", name: "卡比", ip: "anime", icon: "/skinmint/icons/kirby.png" },
-  // assisted-curation batch 2
-  { id: "asuna", name: "亚丝娜", ip: "anime", icon: "/skinmint/icons/asuna.png" },
-  { id: "emilia", name: "艾米莉亚", ip: "anime", icon: "/skinmint/icons/emilia.png" },
-  { id: "yor", name: "约尔", ip: "anime", icon: "/skinmint/icons/yor.png" },
-  { id: "killua", name: "奇犽", ip: "anime", icon: "/skinmint/icons/killua.png" },
-  { id: "yuji", name: "虎杖悠仁", ip: "anime", icon: "/skinmint/icons/yuji.png" },
-  { id: "sukuna", name: "宿傩", ip: "anime", icon: "/skinmint/icons/sukuna.png" },
-  { id: "deku", name: "绿谷出久", ip: "anime", icon: "/skinmint/icons/deku.png" },
-  { id: "vegeta", name: "贝吉塔", ip: "anime", icon: "/skinmint/icons/vegeta.png" },
-  // assisted-curation batch 3 — female, covered + bangs, to disperse the f/skirt collapse
-  { id: "shinobu", name: "胡蝶忍", ip: "anime", icon: "/skinmint/icons/shinobu.png" },
-  { id: "mitsuri", name: "甘露寺蜜璃", ip: "anime", icon: "/skinmint/icons/mitsuri.png" },
-  { id: "yumeko", name: "蛇喰梦子", ip: "anime", icon: "/skinmint/icons/yumeko.png" },
+const GENSHIN: Character[] = [
+  G("hutao", "胡桃"), G("ganyu", "甘雨"), G("zhongli", "钟离"), G("klee", "可莉"), G("keqing", "刻晴"),
+  G("kazuha", "枫原万叶"), G("xiao", "魈"), G("venti", "温迪"), G("diluc", "迪卢克"), G("tartaglia", "达达利亚"),
+  G("xingqiu", "行秋"), G("xiangling", "香菱"), G("qiqi", "七七"), G("albedo", "阿贝多"), G("amber", "安柏"),
+  G("beidou", "北斗"), G("bennett", "班尼特"), G("chongyun", "重云"), G("jean", "琴"), G("noelle", "诺艾尔"),
+  G("razor", "雷泽"), G("sucrose", "砂糖"), G("aether", "空"), G("lumine", "荧"), G("paimon", "派蒙"), G("furina", "芙宁娜"),
 ];
+
+const ANIME: Character[] = [
+  A("miku", "初音未来"), A("luffy", "路飞"), A("zoro", "索隆"), A("naruto", "漩涡鸣人"), A("sasuke", "宇智波佐助"),
+  A("itachi", "宇智波鼬"), A("kakashi", "卡卡西"), A("hinata", "日向雏田"), A("gojo", "五条悟"), A("yuji", "虎杖悠仁"),
+  A("sukuna", "宿傩"), A("tanjiro", "炭治郎"), A("nezuko", "祢豆子"), A("zenitsu", "善逸"), A("shinobu", "胡蝶忍"),
+  A("mitsuri", "甘露寺蜜璃"), A("deku", "绿谷出久"), A("bakugo", "爆豪胜己"), A("todoroki", "轰焦冻"), A("eren", "艾伦"),
+  A("mikasa", "三笠"), A("levi", "利威尔"), A("ichigo", "黑崎一护"), A("goku", "孙悟空"), A("vegeta", "贝吉塔"),
+  A("makima", "真纪真"), A("frieren", "芙莉莲"), A("rem", "蕾姆"), A("emilia", "艾米莉亚"), A("megumin", "惠惠"),
+  A("asuna", "亚丝娜"), A("asuka", "明日香"), A("2b", "2B"), A("anya", "阿尼亚"), A("yor", "约尔"),
+  A("yumeko", "蛇喰梦子"), A("killua", "奇犽"),
+];
+
+// One flat, IP-MIXED library. A stable hash-shuffle so the grid isn't "all Genshin first" but stays
+// deterministic across SSR/client (no Math.random → no hydration mismatch).
+const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+export const CHARACTERS: Character[] = [...GENSHIN, ...ANIME].sort((a, b) => hash(a.id) - hash(b.id));

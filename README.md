@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <b>🎮 <a href="https://skin.vindo.cn/">Try it live → skin.vindo.cn</a></b>
+</p>
+
+<p align="center">
   <i>🚧 In active development — alpha. The shape is settling but APIs still move, and nothing is on npm yet.</i>
 </p>
 
