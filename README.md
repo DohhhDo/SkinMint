@@ -13,6 +13,10 @@
   <i>🚧 In active development — alpha. The shape is settling but APIs still move, and nothing is on npm yet.</i>
 </p>
 
+<p align="center">
+  📖 <a href="https://www.vindo.cn/blog/skinmint-anime-to-minecraft">Read the story: how SkinMint turns anime art into Minecraft characters →</a>
+</p>
+
 ---
 
 SkinMint started as a generic "text → 3D mesh" toolkit. It still has those building

@@ -13,6 +13,10 @@
   <i>🚧 開發中 · alpha。形態正逐漸穩定，但 API 仍會變動，且尚未發佈到 npm。</i>
 </p>
 
+<p align="center">
+  📖 <a href="https://www.vindo.cn/blog/skinmint-anime-to-minecraft">介紹文章：SkinMint 如何把二次元立繪變成 Minecraft 角色 →</a>
+</p>
+
 ---
 
 SkinMint 最初是一套通用的「文字 → 3D 網格」工具包。這些基礎能力還在，但真正有意思的地方變成了**體素角色**：AI 的 text-to-3D 產生的是平滑的低多邊形團塊，而不是大家從「Minecraft 風格」裡真正想要的那種俐落方塊感。於是 SkinMint 專注於讓這種風格成立的核心——一套固定的方塊骨架 + 一張 64×64 面板（skin）——以**程式化建構**模型，而不是去產生幾何。
