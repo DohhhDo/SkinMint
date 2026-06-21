@@ -1,6 +1,10 @@
 <h1 align="center">SkinMint</h1>
 
 <p align="center">
+  <b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.zh-TW.md">繁體中文</a>
+</p>
+
+<p align="center">
   <b>Make a Minecraft-style character, get a model that actually moves.</b><br/>
   Pick a character (or upload your own art) → a true blocky, animated GLB you can drag around and embed anywhere.
 </p>
