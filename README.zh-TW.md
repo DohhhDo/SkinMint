@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://skin.vindo.cn/">
-    <img src="https://img.shields.io/badge/🎮%20線上試用-skin.vindo.cn-2c4be0?style=for-the-badge&labelColor=1a1815&logoColor=white" alt="線上試用" height="48">
+    <img src="https://img.shields.io/badge/🎮%20線上試用%20·%20skin.vindo.cn-f0502e?style=for-the-badge&logoColor=white" alt="線上試用" height="70">
   </a>
 </p>
 
