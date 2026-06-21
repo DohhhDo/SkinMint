@@ -1,4 +1,6 @@
 import { PNG } from "pngjs";
+import type { HeadSpec } from "@skinmint/skin";
+import { paintEars, paintHorns, paintHat, paintHood, paintBand, paintBow, paintCrown, paintFaceAcc, type RGB, type Setter } from "./headStencils";
 
 type RGBA = [number, number, number, number];
 
@@ -9,7 +11,8 @@ type RGBA = [number, number, number, number];
  * shaded copy of the front; the FACE is drawn (skin tone + irises), since an 8×8 projection of a
  * 立绘 face is always a blur. `eyeHex` (from the VLM) overrides the detected iris color.
  */
-export function projectSkin(imageBuf: Buffer, eyeHex?: string): Uint8Array {
+export function projectSkin(imageBuf: Buffer, opts: { eyeHex?: string; head?: HeadSpec; hairHex?: string } = {}): Uint8Array {
+  const { eyeHex, head } = opts;
   const img = PNG.sync.read(imageBuf);
   const W = img.width, H = img.height, d = img.data;
   const at = (x: number, y: number): RGBA => { const i = (y * W + x) * 4; return [d[i]!, d[i + 1]!, d[i + 2]!, d[i + 3]!]; };
@@ -64,11 +67,18 @@ export function projectSkin(imageBuf: Buffer, eyeHex?: string): Uint8Array {
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) set(f.nz![0]! + i, f.nz![1]! + j, sh(g[j]?.[w - 1 - i] ?? null, 0.7));
     for (let i = 0; i < w; i++) for (let k = 0; k < dep; k++) { set(f.py![0]! + i, f.py![1]! + k, sh(g[0]?.[i] ?? null, 0.9)); set(f.ny![0]! + i, f.ny![1]! + k, sh(g[h - 1]?.[i] ?? null, 0.6)); }
   };
-  const fillBox = (box: [number, number, number, number, number], c: RGBA) => { const f = fr(...box); for (const r of Object.values(f)) fillC(r[0]!, r[1]!, r[2]!, r[3]!, c); };
 
-  // HEAD — hair fills the head; face is DRAWN (skin + irises), not projected.
-  const hairC = domColor(minX + ((bw * 0.3) | 0), minY, minX + ((bw * 0.7) | 0), FY(faceTop), true);
-  fillBox([0, 0, 8, 8, 8], hairC);
+  // ===== HEAD — layered compositor: hair volume → face → fringe → long hair → accessories.
+  // Each head element lands on its own UV face(s); the cube's two layers are the whole budget.
+  const hexRGBA = (h?: string): RGBA | null => { if (!h) return null; const m = /^#?([0-9a-fA-F]{6})$/.exec(h.trim()); if (!m) return null; const n = parseInt(m[1]!, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; };
+  const rgbOf = (h: string | undefined, fb: RGB): RGB => { const c = hexRGBA(h); return c ? [c[0], c[1], c[2]] : fb; };
+  const hairC: RGBA = hexRGBA(opts.hairHex) ?? domColor(minX + ((bw * 0.3) | 0), minY, minX + ((bw * 0.7) | 0), FY(faceTop), true);
+  const hairRGB: RGB = [hairC[0], hairC[1], hairC[2]];
+  const setRGB: Setter = (x, y, c) => set(x, y, [c[0], c[1], c[2], 255]);
+  const hb = fr(0, 0, 8, 8, 8);   // head base faces
+  const ho = fr(32, 0, 8, 8, 8);  // head overlay (hat) faces
+
+  // sample face skin + eye color from the standardized image
   let fr_ = 0, fg_ = 0, fb_ = 0, fn = 0, er = 0, eg = 0, eb = 0, en = 0;
   for (let y = minY + faceTop; y <= minY + faceBot + 2; y++) for (let x = minX; x <= maxX; x++) { const [r, g, b, a] = at(x, y); if (bgLike(r, g, b, a)) continue;
     if (isSkin(r, g, b)) { fr_ += r; fg_ += g; fb_ += b; fn++; }
@@ -76,9 +86,83 @@ export function projectSkin(imageBuf: Buffer, eyeHex?: string): Uint8Array {
   const faceSkin: RGBA = fn ? [fr_ / fn | 0, fg_ / fn | 0, fb_ / fn | 0, 255] : [240, 210, 190, 255];
   let eyeC: RGBA = en ? [er / en | 0, eg / en | 0, eb / en | 0, 255] : [100, 60, 50, 255];
   if (eyeHex && /^#?[0-9a-fA-F]{6}$/.test(eyeHex.trim())) { const n = parseInt(eyeHex.replace("#", ""), 16); eyeC = [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; }
-  const fbx = fr(0, 0, 8, 8, 8);
-  for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) set(fbx.pz![0]! + i, fbx.pz![1]! + j, j < 2 ? hairC : faceSkin);
-  for (const ex of [1, 2, 5, 6]) set(fbx.pz![0]! + ex, fbx.pz![1]! + 4, eyeC);
+
+  // (1) hair VOLUME on the non-face faces (base + overlay): top / sides / back / underside
+  for (const [rc, f] of [[hb.py, 1], [hb.nx, 0.95], [hb.px, 0.95], [hb.nz, 0.9], [hb.ny, 0.85]] as const) fillC(rc![0]!, rc![1]!, rc![2]!, rc![3]!, sh(hairC, f as number)!);
+  for (const [rc, f] of [[ho.py, 1], [ho.nx, 0.95], [ho.px, 0.95], [ho.nz, 0.9]] as const) fillC(rc![0]!, rc![1]!, rc![2]!, rc![3]!, sh(hairC, f as number)!);
+
+  // (2) FACE on the base front: skin block + crafted big anime eyes + soft mouth.
+  // Per eye (2px wide): a dark upper LASH line, a 2-row IRIS in the eye color, and a white
+  // highlight sparkle. Drawn deterministically (consistent every run), in the correct top-down
+  // order — lash above iris, sparkle in the iris — so it reads as looking forward.
+  const fx = hb.pz![0]!, fy = hb.pz![1]!;
+  for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) set(fx + i, fy + j, faceSkin);
+  const wht: RGBA = [250, 250, 252, 255];
+  const lashC = sh(eyeC, 0.4)!; // dark eyelid, tinted by the iris hue
+  for (const ox of [1, 5]) { // left eye cols 1-2, right eye cols 5-6
+    set(fx + ox, fy + 3, lashC); set(fx + ox + 1, fy + 3, lashC);   // upper lash line
+    set(fx + ox, fy + 4, eyeC); set(fx + ox + 1, fy + 4, eyeC);     // iris (upper)
+    set(fx + ox, fy + 5, eyeC); set(fx + ox + 1, fy + 5, eyeC);     // iris (lower)
+  }
+  set(fx + 2, fy + 4, wht); set(fx + 5, fy + 4, wht); // highlight sparkle (inner-top of each iris)
+  set(fx + 3, fy + 6, sh(faceSkin, 0.66)); set(fx + 4, fy + 6, sh(faceSkin, 0.66)); // soft mouth
+
+  // (3) FRINGE — per-column hairline trace onto the front overlay (captures bang shape)
+  let hMinX = maxX, hMaxX = minX;
+  for (let y = minY + faceTop; y <= minY + faceBot; y++) for (let x = minX; x <= maxX; x++) { const [r, g, b, a] = at(x, y); if (!bgLike(r, g, b, a)) { if (x < hMinX) hMinX = x; if (x > hMaxX) hMaxX = x; } }
+  if (hMaxX < hMinX) { hMinX = minX; hMaxX = maxX; }
+  const bandTop = minY + Math.max(0, faceTop - (((faceBot - faceTop) * 0.4) | 0)), bandBot = minY + faceBot;
+  for (let c = 0; c < 8; c++) {
+    const ix = (hMinX + (hMaxX - hMinX) * (c + 0.5) / 8) | 0;
+    let skinRow = -1;
+    for (let y = bandTop; y <= bandBot; y++) { const [r, g, b, a] = at(ix, y); if (bgLike(r, g, b, a)) continue; if (isSkin(r, g, b)) { skinRow = y; break; } }
+    // cap inner columns so the fringe never reaches the eye row (y12 = j4); outer columns are
+    // face-framing locks and may run the full height.
+    const cap = c === 0 || c === 7 ? 8 : 4;
+    const depth = skinRow < 0 ? cap : Math.max(0, Math.min(cap, Math.round((skinRow - bandTop) / (bandBot - bandTop + 1) * 8)));
+    for (let j = 0; j < depth; j++) set(ho.pz![0]! + c, ho.pz![1]! + j, sh(hairC, j === depth - 1 ? 0.85 : 1));
+  }
+  // sidelocks: keep the outer front-overlay columns hair down the full face height
+  if (head?.sidelocks) for (const c of [0, 7]) for (let j = 0; j < 8; j++) set(ho.pz![0]! + c, ho.pz![1]! + j, sh(hairC, 0.95));
+
+  // (4) LONG HAIR — back overlay already hair; extend down the body's back overlay
+  if (head && (head.length === "shoulder" || head.length === "long")) {
+    const back = fr(16, 32, 8, 12, 4).nz!; // torso overlay, back face
+    const rows = head.length === "long" ? 12 : 5;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < 8; i++) set(back[0]! + i, back[1]! + j, sh(hairC, 0.9 - j * 0.012));
+  }
+
+  // (5) ACCESSORIES — stencils, painted in occlusion order (hat → ears/horns → hair-acc → face-acc)
+  if (head) {
+    if (head.hat.type === "hood") paintHood(setRGB, rgbOf(head.hat.color, hairRGB));
+    else if (head.hat.type !== "none") paintHat(setRGB, rgbOf(head.hat.color, hairRGB), head.hat.type === "cap" ? "cap" : head.hat.type === "beret" ? "beret" : "hat");
+    if (head.ears.type !== "none") paintEars(setRGB, rgbOf(head.ears.color, hairRGB), head.ears.type === "other" ? "cat" : head.ears.type);
+    if (head.horns.type !== "none") paintHorns(setRGB, rgbOf(head.horns.color, [232, 224, 208]), head.horns.type === "other" ? "demon" : head.horns.type);
+    const acc = head.hairAccessory;
+    if (acc.type === "band") paintBand(setRGB, rgbOf(acc.color, [200, 60, 70]));
+    else if (acc.type === "crown") paintCrown(setRGB, rgbOf(acc.color, [220, 190, 90]));
+    else if (acc.type === "ribbon" || acc.type === "clip") paintBow(setRGB, rgbOf(acc.color, [200, 60, 70]), acc.side);
+    else {
+      // program-side backup: the VLM said "no hair accessory", but look for a distinct-colored
+      // cluster sitting IN the hair (a bow/clip the VLM missed). Scan the crown/fringe full-width
+      // and the side strips below it — but skip the central face at eye level so eyes aren't caught.
+      const fTop = minY + faceTop, fBot = minY + faceBot, mid = (hMinX + hMaxX) / 2, hw = hMaxX - hMinX + 1;
+      let cr = 0, cg = 0, cb = 0, cxs = 0, cn = 0;
+      for (let y = bandTop; y <= fBot; y++) for (let x = hMinX; x <= hMaxX; x++) {
+        if (y > fTop && Math.abs(x - mid) < hw * 0.25) continue; // skip the central face/eyes
+        const [r, g, b, a] = at(x, y); if (bgLike(r, g, b, a) || isSkin(r, g, b)) continue;
+        const dr = r - hairC[0], dg = g - hairC[1], db = b - hairC[2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        if (dr * dr + dg * dg + db * db > 6000 && mx - mn > 35 && mx > 60) { cr += r; cg += g; cb += b; cxs += x; cn++; }
+      }
+      const area = hw * (fBot - bandTop + 1);
+      if (cn >= 5 && cn < area * 0.22) {
+        const cxAvg = cxs / cn, m = hw * 0.12;
+        const side = cxAvg < mid - m ? "left" : cxAvg > mid + m ? "right" : "center";
+        paintBow(setRGB, [cr / cn | 0, cg / cn | 0, cb / cn | 0], side);
+      }
+    }
+    if (head.faceAccessory.type !== "none") paintFaceAcc(setRGB, rgbOf(head.faceAccessory.color, [40, 40, 40]), head.faceAccessory.type, 4);
+  }
 
   // TORSO / ARMS / LEGS — projected real pixels
   const tY0 = FY(headBot), tY1 = FY(legStart), tcx0 = minX + ((bw * 0.30) | 0), tcx1 = minX + ((bw * 0.70) | 0);
@@ -89,20 +173,40 @@ export function projectSkin(imageBuf: Buffer, eyeHex?: string): Uint8Array {
   paintFront([0, 16, 4, 12, 4], grid(minX + ((bw * 0.34) | 0), lY0, lmid, lY1, 4, 12));
   paintFront([16, 48, 4, 12, 4], grid(lmid, lY0, minX + ((bw * 0.66) | 0), lY1, 4, 12));
 
+  // FRONT-FALLING LONG HAIR — hair draping over the shoulders/chest in the 立绘 is real, visible
+  // pixels (not background). Project it onto the body OVERLAY layer so it sits IN FRONT of the
+  // garment; keep only hair-colored cells so the outfit shows everywhere else.
+  if (head && (head.length === "long" || head.length === "shoulder")) {
+    const isHair = (c: RGBA | null): boolean => {
+      if (!c || isSkin(c[0], c[1], c[2])) return false;
+      const dr = c[0] - hairC[0], dg = c[1] - hairC[1], db = c[2] - hairC[2];
+      return dr * dr + dg * dg + db * db < 4600; // close to the sampled hair color
+    };
+    const overlayHair = (box: [number, number, number, number, number], g: (RGBA | null)[][]) => {
+      const f = fr(...box);
+      for (let j = 0; j < box[3]; j++) for (let i = 0; i < box[2]; i++) { const c = g[j]?.[i] ?? null; if (isHair(c)) set(f.pz![0]! + i, f.pz![1]! + j, c); }
+    };
+    overlayHair([16, 32, 8, 12, 4], grid(tcx0, tY0, tcx1, tY1, 8, 12)); // torso overlay (jacket layer)
+    overlayHair([40, 32, 4, 12, 4], grid(minX + ((bw * 0.13) | 0), tY0, tcx0, tY1, 4, 12)); // right-arm overlay (image left)
+    overlayHair([48, 48, 4, 12, 4], grid(tcx1, tY0, minX + ((bw * 0.87) | 0), tY1, 4, 12)); // left-arm overlay (image right)
+  }
+
   return new Uint8Array(PNG.sync.write(skin));
 }
 
 /**
- * Merge two 64×64 skins: the HEAD rows (y<16, the head + hat-overlay band) from `head` (a recolored
- * real base — precise hand-drawn face/eyes), the BODY (y≥16) from `body` (the front-projection —
- * real garment pixels). Best of both: a crafted face on a faithfully-colored body.
+ * Stamp the FACE square only (base-front UV [8,8]–[15,15]) from `faceSrc` (a recolored real base —
+ * precise hand-drawn eyes/lash/whites) onto `dst` (the compositor skin), keeping ALL of the
+ * compositor's hair / fringe / accessories / overlay. Best of both: a crafted face under the
+ * character's own hair. The face square is bordered by hair on every side, so a small skin-tone
+ * seam is hidden.
  */
-export function mergeHeadBody(head: Uint8Array, body: Uint8Array): Uint8Array {
-  const hp = PNG.sync.read(Buffer.from(head)), bp = PNG.sync.read(Buffer.from(body));
-  const out = new PNG({ width: 64, height: 64 });
-  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
-    const o = (y * 64 + x) * 4, src = y < 16 ? hp : bp;
-    out.data[o] = src.data[o]!; out.data[o + 1] = src.data[o + 1]!; out.data[o + 2] = src.data[o + 2]!; out.data[o + 3] = src.data[o + 3]!;
+export function mergeFace(dst: Uint8Array, faceSrc: Uint8Array): Uint8Array {
+  const d = PNG.sync.read(Buffer.from(dst)), s = PNG.sync.read(Buffer.from(faceSrc));
+  for (let y = 8; y < 16; y++) for (let x = 8; x < 16; x++) {
+    const o = (y * 64 + x) * 4;
+    if ((s.data[o + 3] ?? 0) < 40) continue; // keep dst where the base face is transparent
+    d.data[o] = s.data[o]!; d.data[o + 1] = s.data[o + 1]!; d.data[o + 2] = s.data[o + 2]!; d.data[o + 3] = 255;
   }
-  return new Uint8Array(PNG.sync.write(out));
+  return new Uint8Array(PNG.sync.write(d));
 }

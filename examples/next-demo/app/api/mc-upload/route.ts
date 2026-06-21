@@ -3,8 +3,7 @@ import { PNG } from "pngjs";
 import { buildMinecraftGLB } from "@skinmint/mcmodel";
 import { FileSystemBlobStorage, FileGenerationStore } from "@skinmint/store";
 import { extractCharacterSpec } from "@skinmint/skin";
-import { projectSkin, mergeHeadBody } from "../../_lib/project";
-import { generateSkinFromPalette } from "../../_lib/recolor";
+import { projectSkin } from "../../_lib/project";
 import { sampleColorsNode } from "../../_lib/sampleColorsNode";
 import { resolveImageProvider, resolveVisionProvider } from "../../_ai/providers";
 
@@ -59,27 +58,34 @@ export async function POST(request: Request) {
     try { spec = await extractCharacterSpec(decoded.bytes, { vision: resolveVisionProvider(), mime: decoded.mime }); } catch { /* graceful */ }
     const eyeHex = spec?.eyes.color;
 
-    // ③ HYBRID: body from projection (real pixels), head from a recolored real base (crafted face).
+    // ③ BODY from front-projection (real garment pixels); HEAD from the layered compositor —
+    //    hair volume + per-column fringe + long hair + accessory stencils (from `head`). The FACE
+    //    square is then stamped from a recolored real base (crafted hand-drawn eyes), under the hair.
     const stdBuf = Buffer.from(stdBytes);
-    const projected = projectSkin(stdBuf, eyeHex);
-    let png = projected;
-    try {
-      const colors = sampleColorsNode(PNG.sync.read(stdBuf));
-      const lower = (spec?.bottom.type === "pants" || spec?.bottom.type === "shorts") ? "pants" as const
-        : spec?.bottom.type === "dress" ? "dress" as const : spec?.bottom.type === "skirt" ? "skirt" as const : undefined;
-      const recolored = generateSkinFromPalette(
-        { ...colors, eyes: eyeHex, accent: spec?.accents?.[0], headwear: spec?.headwear.color },
-        { gender: spec?.gender, lower }, { headwear: spec?.headwear.type },
-      ).png;
-      png = mergeHeadBody(recolored, projected); // head = crafted face, body = projection
-    } catch { /* fall back to pure projection */ }
-    const glb = await buildMinecraftGLB(png, { overlay: true, chibi: !!body.chibi, base: !!body.base });
+    // Sample colors from the ORIGINAL 立绘 — it keeps the true (e.g. saturated lavender) hair the
+    // sampler's tint-recovery needs; Qwen's redraw washes light hair toward white. Fall back to the
+    // standardized image when the original isn't a decodable PNG (e.g. a JPEG upload).
+    let colors: ReturnType<typeof sampleColorsNode> | null = null;
+    try { colors = sampleColorsNode(PNG.sync.read(Buffer.from(decoded.bytes))); } catch { /* not a PNG */ }
+    if (!colors) { try { colors = sampleColorsNode(PNG.sync.read(stdBuf)); } catch { /* sampler optional */ } }
+    // HAIR CALIBRATION. The sampler grabs near-white HIGHLIGHTS for very light hair → a washed,
+    // near-NEUTRAL color (light + low chroma). Lightness alone can't catch this (valid light lavender
+    // is also light), so test chroma. When the sample is washed, take the VLM's read ONLY if it's a
+    // real light HUED color (reject the VLM's dark-brown default — wrong for a light-haired char);
+    // otherwise keep the washed sample (at least the right lightness, not a random brown).
+    const rgb = (h?: string) => { const m = /#?([0-9a-fA-F]{6})/.exec(h || ""); if (!m) return null; const n = parseInt(m[1]!, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const washed = (h?: string) => { const c = rgb(h); if (!c) return true; return Math.max(...c) > 220 && Math.max(...c) - Math.min(...c) < 16; };
+    const lightHued = (h?: string) => { const c = rgb(h); return !!c && Math.max(...c) > 150 && Math.max(...c) - Math.min(...c) >= 16; };
+    const hairHex = colors?.hair && !washed(colors.hair) ? colors.hair : lightHued(spec?.hair.color) ? spec!.hair.color : colors?.hair || spec?.hair.color;
+    const png = projectSkin(stdBuf, { eyeHex, head: spec?.head, hairHex });
+    const halo = spec?.head.halo?.has ? { color: spec.head.halo.color } : undefined;
+    const glb = await buildMinecraftGLB(png, { overlay: true, chibi: !!body.chibi, base: !!body.base, halo });
     const blobKey = `${id}.glb`;
     await storage.put(blobKey, glb, "model/gltf-binary");
     const modelUrl = `/api/generate?file=${encodeURIComponent(blobKey)}`;
     await store.update(id, { status: "succeeded", modelUrl });
 
-    return Response.json({ id, modelUrl });
+    return Response.json({ id, modelUrl, head: spec?.head ?? null });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : "generation failed" }, { status: 500 });
   }

@@ -10,6 +10,34 @@ export type BottomType = "pants" | "skirt" | "shorts" | "dress";
 export type Legwear = "none" | "stockings" | "tights";
 export type Headwear = "none" | "hat" | "hood" | "ears" | "horns";
 
+// --- head element vocabulary (drives the head compositor, not the flat spec renderer) ---
+export type Fringe = "blunt" | "parted" | "swept" | "middle" | "none";
+export type HairLength = "short" | "shoulder" | "long";
+export type EarType = "none" | "cat" | "fox" | "rabbit" | "other";
+export type HornType = "none" | "demon" | "oni" | "other";
+export type HatType = "none" | "hat" | "cap" | "beret" | "hood";
+export type HairAccType = "none" | "ribbon" | "clip" | "crown" | "band";
+export type FaceAccType = "none" | "glasses" | "eyepatch" | "mask";
+export type Side = "left" | "right" | "center" | "both";
+
+/**
+ * Per-element head reading — what the cube's two overlay layers must express
+ * separately: fringe shape, hair length, sidelocks, plus the four accessory
+ * slots (ears/horns coexist with hair; a hat replaces the crown). The head
+ * compositor in the app layers these; the flat `renderSkinFromSpec` ignores it.
+ */
+export interface HeadSpec {
+  fringe: Fringe;
+  length: HairLength;
+  sidelocks: boolean;
+  ears: { type: EarType; color: string };
+  horns: { type: HornType; color: string };
+  hat: { type: HatType; color: string };
+  hairAccessory: { type: HairAccType; color: string; side: Side };
+  faceAccessory: { type: FaceAccType; color: string };
+  halo: { has: boolean; color: string };
+}
+
 /** Structured character features extracted from a 立绘 — drives the renderer. */
 export interface CharacterSpec {
   skin: string;
@@ -17,6 +45,7 @@ export interface CharacterSpec {
   hair: { color: string; style: HairStyle };
   eyes: { color: string };
   headwear: { type: Headwear; color?: string };
+  head: HeadSpec;
   top: { type: TopType; colors: string[] };
   bottom: { type: BottomType; colors: string[] };
   legwear: Legwear;
@@ -124,8 +153,9 @@ export function renderSkinFromSpec(s: CharacterSpec): Uint8Array {
 }
 
 const SPEC_INSTRUCTION = `Analyze this anime character and output ONLY a compact JSON describing its FEATURES for a Minecraft skin (use real dominant colors as hex):
-{"skin":"#rrggbb","gender":"m|f|n","hair":{"color":"#rrggbb","style":"short|bob|long|twin_tails|ponytail"},"eyes":{"color":"#rrggbb"},"headwear":{"type":"none|hat|hood|ears|horns","color":"#rrggbb"},"top":{"type":"shirt|dress|jacket|armor|robe","colors":["#rrggbb","#rrggbb"]},"bottom":{"type":"pants|skirt|shorts|dress","colors":["#rrggbb"]},"legwear":"none|stockings|tights","shoes":{"color":"#rrggbb"},"accents":["#rrggbb"]}
-gender: "m" male-presenting, "f" female-presenting, "n" if unclear/non-human. Output the JSON only, no other text.`;
+{"skin":"#rrggbb","gender":"m|f|n","hair":{"color":"#rrggbb","style":"short|bob|long|twin_tails|ponytail"},"eyes":{"color":"#rrggbb"},"headwear":{"type":"none|hat|hood|ears|horns","color":"#rrggbb"},"head":{"fringe":"blunt|parted|swept|middle|none","length":"short|shoulder|long","sidelocks":true,"ears":{"type":"none|cat|fox|rabbit|other","color":"#rrggbb"},"horns":{"type":"none|demon|oni|other","color":"#rrggbb"},"hat":{"type":"none|hat|cap|beret|hood","color":"#rrggbb"},"hairAccessory":{"type":"none|ribbon|clip|crown|band","color":"#rrggbb","side":"left|right|center|both"},"faceAccessory":{"type":"none|glasses|eyepatch|mask","color":"#rrggbb"},"halo":{"has":false,"color":"#rrggbb"}},"top":{"type":"shirt|dress|jacket|armor|robe","colors":["#rrggbb","#rrggbb"]},"bottom":{"type":"pants|skirt|shorts|dress","colors":["#rrggbb"]},"legwear":"none|stockings|tights","shoes":{"color":"#rrggbb"},"accents":["#rrggbb"]}
+gender: "m" male-presenting, "f" female-presenting, "n" if unclear/non-human.
+head: read the HEAD precisely — fringe = shape of the bangs over the forehead; length = how far the hair falls (short=above jaw, shoulder, long=past shoulders); sidelocks = locks framing the face. ears/horns = animal ears or horns ON TOP of the head (type "none" if absent), their own color. hat = a hat/hood that covers the crown ("none" if none). hairAccessory = a bow/clip/crown/headband worn IN the hair, with its color and which side. faceAccessory = glasses/eyepatch/mask over the face. halo = a ring, hoop, or glowing circular/geometric shape hovering ABOVE or just behind the top of the head, NOT touching the hair (very common in games like Blue Archive — almost every character has one). Look carefully above the head; set has:true with its color if you see one. Use "none"/false for anything the character does not have. Output the JSON only, no other text.`;
 
 function pickHex(v: unknown, fb: string): string {
   return typeof v === "string" && /^#?[0-9a-fA-F]{6}$/.test(v.trim()) ? (v.trim().startsWith("#") ? v.trim() : "#" + v.trim()) : fb;
@@ -142,12 +172,25 @@ export async function extractCharacterSpec(image: Uint8Array, opts: { vision: Vi
     return arr.length ? arr : fbs;
   };
   const oneOf = <T extends string>(v: unknown, allow: readonly T[], fb: T): T => (typeof v === "string" && (allow as readonly string[]).includes(v) ? (v as T) : fb);
+  const h = raw.head ?? {};
+  const head: HeadSpec = {
+    fringe: oneOf(h.fringe, ["blunt", "parted", "swept", "middle", "none"] as const, "blunt"),
+    length: oneOf(h.length, ["short", "shoulder", "long"] as const, "short"),
+    sidelocks: h.sidelocks === true || h.sidelocks === "true",
+    ears: { type: oneOf(h.ears?.type, ["none", "cat", "fox", "rabbit", "other"] as const, "none"), color: pickHex(h.ears?.color, "#3a2a22") },
+    horns: { type: oneOf(h.horns?.type, ["none", "demon", "oni", "other"] as const, "none"), color: pickHex(h.horns?.color, "#e8e0d0") },
+    hat: { type: oneOf(h.hat?.type, ["none", "hat", "cap", "beret", "hood"] as const, "none"), color: pickHex(h.hat?.color, "#444444") },
+    hairAccessory: { type: oneOf(h.hairAccessory?.type, ["none", "ribbon", "clip", "crown", "band"] as const, "none"), color: pickHex(h.hairAccessory?.color, "#cc3344"), side: oneOf(h.hairAccessory?.side, ["left", "right", "center", "both"] as const, "center") },
+    faceAccessory: { type: oneOf(h.faceAccessory?.type, ["none", "glasses", "eyepatch", "mask"] as const, "none"), color: pickHex(h.faceAccessory?.color, "#222222") },
+    halo: { has: h.halo?.has === true || h.halo?.has === "true", color: pickHex(h.halo?.color, "#ffd54a") },
+  };
   return {
     skin: pickHex(raw.skin, "#f0d6c0"),
     gender: oneOf(raw.gender, ["m", "f", "n"] as const, "n"),
     hair: { color: pickHex(raw.hair?.color, "#3a2a22"), style: oneOf(raw.hair?.style, ["short", "bob", "long", "twin_tails", "ponytail"], "long") },
     eyes: { color: pickHex(raw.eyes?.color, "#5a3a2a") },
     headwear: { type: oneOf(raw.headwear?.type, ["none", "hat", "hood", "ears", "horns"], "none"), color: typeof raw.headwear?.color === "string" ? pickHex(raw.headwear.color, "#333333") : undefined },
+    head,
     top: { type: oneOf(raw.top?.type, ["shirt", "dress", "jacket", "armor", "robe"], "shirt"), colors: colors(raw.top?.colors, ["#6a6a72", "#4a4a52"]) },
     bottom: { type: oneOf(raw.bottom?.type, ["pants", "skirt", "shorts", "dress"], "pants"), colors: colors(raw.bottom?.colors, ["#33384a"]) },
     legwear: oneOf(raw.legwear, ["none", "stockings", "tights"], "none"),

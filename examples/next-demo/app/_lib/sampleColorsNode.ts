@@ -29,5 +29,17 @@ export function sampleColorsNode(png: PNG): SampledColors {
   const skinPx: number[][] = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { if (isBg(x, y)) continue; const [r, g, b] = px(x, y); if (isSkin(r!, g!, b!)) skinPx.push([r!, g!, b!]); }
   const c = (arr: number[][]) => { const m = mode(arr); return m ? hex(m) : undefined; };
-  return { skin: c(skinPx), hair: c(region(0, 0.2)), top: c(region(0.22, 0.46)), bottom: c(region(0.52, 0.82)), shoes: c(region(0.9, 1.0)) };
+  // Hair: light hair (silver/lavender/pastel) is dominated by near-white HIGHLIGHTS, so the plain
+  // mode comes out washed/near-neutral and loses the tint. When that happens, recover the underlying
+  // hue from the more-saturated hair pixels.
+  const hairFor = (arr: number[][]) => {
+    let m = mode(arr);
+    if (m && Math.max(...m) > 215 && Math.max(...m) - Math.min(...m) < 18) {
+      const sat = arr.filter((p) => Math.max(p[0]!, p[1]!, p[2]!) - Math.min(p[0]!, p[1]!, p[2]!) >= 22);
+      const m2 = mode(sat);
+      if (m2) m = m2;
+    }
+    return m ? hex(m) : undefined;
+  };
+  return { skin: c(skinPx), hair: hairFor(region(0, 0.2)), top: c(region(0.22, 0.46)), bottom: c(region(0.52, 0.82)), shoes: c(region(0.9, 1.0)) };
 }

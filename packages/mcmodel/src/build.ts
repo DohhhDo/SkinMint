@@ -1,6 +1,6 @@
 import { Document, NodeIO, TextureInfo, type Accessor } from "@gltf-transform/core";
 import { KHRMaterialsUnlit } from "@gltf-transform/extensions";
-import { BoxGeometry } from "three";
+import { BoxGeometry, TorusGeometry, type BufferGeometry } from "three";
 
 /** Animation clips embedded in every model. The viewer picks one to play. */
 export const CLIPS = ["idle", "walk", "run", "wave"] as const;
@@ -16,6 +16,8 @@ export interface BuildOptions {
   base?: boolean;
   /** Embed walk/run/wave/idle animation clips. Default: true. */
   animated?: boolean;
+  /** Floating ring above the head (e.g. a Blue-Archive halo), in the given hex color. */
+  halo?: { color?: string };
 }
 
 type Face = "px" | "nx" | "py" | "ny" | "pz" | "nz";
@@ -73,7 +75,13 @@ function boxUV(size: number[], faces: Record<Face, Rect>): BoxGeometry {
 function emptyGeo(): Geo {
   return { position: [], uv: [], index: [] };
 }
-function mergeInto(geo: Geo, g: BoxGeometry) {
+function hexRgb01(hex: string | undefined, fb: [number, number, number]): [number, number, number] {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec((hex || "").trim());
+  if (!m) return fb;
+  const n = parseInt(m[1]!, 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+function mergeInto(geo: Geo, g: BufferGeometry) {
   const base = geo.position.length / 3;
   const pos = g.attributes.position!.array;
   const uv = g.attributes.uv!.array;
@@ -155,6 +163,17 @@ export async function buildMinecraftGLB(skinPng: Uint8Array, options: BuildOptio
     const block = emptyGeo();
     mergeInto(block, atCenter([0, -0.5, 0], [14, 1, 14], faceRects(0, 0, 8, 8, 8)));
     staticMesh.addPrimitive(prim(block, blockMat as ReturnType<typeof skinMaterial>));
+  }
+  if (options.halo) {
+    const hc = hexRgb01(options.halo.color, [1, 0.83, 0.29]); // gold default
+    const haloMat = doc.createMaterial("halo").setBaseColorFactor([hc[0], hc[1], hc[2], 1]).setRoughnessFactor(1).setMetallicFactor(0).setDoubleSided(true);
+    haloMat.setExtension("KHR_materials_unlit", unlit.createUnlit());
+    const headTop = headCY + headSize / 2, radius = headSize * 0.45;
+    const ring = new TorusGeometry(radius * S, 0.8 * S, 10, 24); // vertical ring (faces forward), floats above the head
+    ring.translate(0, (headTop + radius + 1) * S, 0);
+    const hg = emptyGeo();
+    mergeInto(hg, ring);
+    staticMesh.addPrimitive(prim(hg, haloMat as ReturnType<typeof skinMaterial>));
   }
   root.addChild(doc.createNode("body").setMesh(staticMesh));
 

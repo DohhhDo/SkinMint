@@ -16,4 +16,4 @@ export { ANIME_POSITIVE, ANIME_NEGATIVE, animePrompt } from "./style";
 // ---- vision caption + deterministic skin painter ----
 export { HFCaptionProvider, captionToSkinPrompt, type ImageCaptioner, type HFCaptionConfig } from "./caption";
 export { paintSkinFromPalette, extractSkinPalette, type SkinPalette } from "./paint";
-export { renderSkinFromSpec, extractCharacterSpec, type CharacterSpec, type HairStyle, type TopType, type BottomType, type Legwear, type Headwear } from "./spec";
+export { renderSkinFromSpec, extractCharacterSpec, type CharacterSpec, type HeadSpec, type HairStyle, type TopType, type BottomType, type Legwear, type Headwear, type Fringe, type HairLength, type EarType, type HornType, type HatType, type HairAccType, type FaceAccType, type Side } from "./spec";
