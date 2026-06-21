@@ -10,7 +10,9 @@
 </p>
 
 <p align="center">
-  <b>🎮 <a href="https://skin.vindo.cn/">Try it live → skin.vindo.cn</a></b>
+  <a href="https://skin.vindo.cn/">
+    <img src="https://img.shields.io/badge/🎮%20TRY%20IT%20LIVE-skin.vindo.cn-2c4be0?style=for-the-badge&labelColor=1a1815&logoColor=white" alt="Try it live" height="48">
+  </a>
 </p>
 
 <p align="center">

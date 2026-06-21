@@ -10,7 +10,9 @@
 </p>
 
 <p align="center">
-  <b>🎮 <a href="https://skin.vindo.cn/">在线试用 → skin.vindo.cn</a></b>
+  <a href="https://skin.vindo.cn/">
+    <img src="https://img.shields.io/badge/🎮%20在线试用-skin.vindo.cn-2c4be0?style=for-the-badge&labelColor=1a1815&logoColor=white" alt="在线试用" height="48">
+  </a>
 </p>
 
 <p align="center">
